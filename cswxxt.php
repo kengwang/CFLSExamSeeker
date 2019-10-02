@@ -67,7 +67,7 @@ function getStuInfo($stun)
         exit;
     }
     $student = $bak['StudentModel'];
-    $info = '学生姓名:' . $student['StudentName'] . PHP_EOL . '家长手机:' . $student['GuardianPhone'] . PHP_EOL . '班级:' . $student['ClassName'] . PHP_EOL . '班主任:' . $student['ClassHeaderName'] . '(' . $student['ClassHeaderPhone'] . ')' . PHP_EOL . '年级主任: ' . $student['GradeHeaderName'] . '(' . $student['GradeHeaderPhone'] . ')';
+    $info = '学生姓名:' . $student['StudentName'] . PHP_EOL . '家长手机:' . $student['GuardianPhone'] . PHP_EOL . '班级:' . $student['ClassName'] . PHP_EOL.'住址:'.$student['HomeAddress'].PHP_EOL . '班主任:' . $student['ClassHeaderName'] . '(' . $student['ClassHeaderPhone'] . ')' . PHP_EOL . '年级主任: ' . $student['GradeHeaderName'] . '(' . $student['GradeHeaderPhone'] . ')';
     return $info;
 }
 
