@@ -1,0 +1,2 @@
+# CFLSExamSeeker
+一个帮助成外学子查询分数等信息的PHP代码
