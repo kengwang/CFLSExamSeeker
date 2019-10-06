@@ -1,5 +1,11 @@
 <?php
 
+if (isset($_GET['stun'])) {
+    define('NEWLINE', '<br>');
+} else {
+    define('NEWLINE', PHP_EOL);
+}
+
 /**
  * Curl访问请求集成,自动转化为Array
  * @param  $url string 访问链接
@@ -67,7 +73,7 @@ function getStuInfo($stun)
         exit;
     }
     $student = $bak['StudentModel'];
-    $info = '学生姓名:' . $student['StudentName'] . PHP_EOL . '家长手机:' . $student['GuardianPhone'] . PHP_EOL . '班级:' . $student['ClassName'] . PHP_EOL.'住址:'.$student['HomeAddress'].PHP_EOL . '班主任:' . $student['ClassHeaderName'] . '(' . $student['ClassHeaderPhone'] . ')' . PHP_EOL . '年级主任: ' . $student['GradeHeaderName'] . '(' . $student['GradeHeaderPhone'] . ')';
+    $info = '学生姓名:' . $student['StudentName'] . NEWLINE . '家长手机:' . $student['GuardianPhone'] . NEWLINE . '班级:' . $student['ClassName'] . NEWLINE . '住址:' . $student['HomeAddress'] . NEWLINE . '班主任:' . $student['ClassHeaderName'] . '(' . $student['ClassHeaderPhone'] . ')' . NEWLINE . '年级主任: ' . $student['GradeHeaderName'] . '(' . $student['GradeHeaderPhone'] . ')';
     return $info;
 }
 
@@ -86,14 +92,18 @@ function getRecentScore($stuid, $startdate)
     $exams = $bak['ListTable'];
     $n = 0;
     foreach ($exams as $exam) {
-        echo PHP_EOL . '[' . $n . '] => ' . $exam['ExamsName'] . ' ( 总分: ' . $exam['TotalScore'] . ' 班排:' . $exam['ClassRanking'] . ' 年排:' . $exam['GradeRanking'] . ')';
+        echo NEWLINE . '[' . $n . '] => ' . $exam['ExamsName'] . ' ( 总分: ' . $exam['TotalScore'] . ' 班排:' . $exam['ClassRanking'] . ' 年排:' . $exam['GradeRanking'] . ')';
         $examids[$n] = array('id' => $exam['ExamsID'], 'name' => $exam['ExamsName'], 'score' => $exam['TotalScore'], 'classrank' => $exam['ClassRanking'], 'graderank' => $exam['GradeRanking']);
         $n++;
     }
-    echo PHP_EOL . '输入前面框框内数字查询当次详情: ';
-    $handle = fopen("php://stdin", "r");
-    $s = fgets($handle);
-    $s = intval($s);
+    if (!isset($_GET['examn'])) {
+        echo NEWLINE . '输入前面框框内数字查询当次详情: ';
+        $handle = fopen("php://stdin", "r");
+        $s = fgets($handle);
+        $s = intval($s);
+    } else {
+        $s = $_GET['examn'];
+    }
     $exam = $examids[$s];
     $examid = $examids[$s]['id'];
     echo $examids[$s]['name'] . ' (' . $examid . ')';
@@ -104,10 +114,10 @@ function getRecentScore($stuid, $startdate)
         exit;
     }
     $lists = $bak['ListTable'];
-    echo PHP_EOL . '录入时间: ' . $lists[0]['ExamsStartDate'] . '  总分: ' . $exam['score'] . '  班排: ' . $exam['classrank'] . '  年排: ' . $exam['graderank'];
-    echo PHP_EOL . '单科成绩: ';
+    echo NEWLINE . '录入时间: ' . $lists[0]['ExamsStartDate'] . '  总分: ' . $exam['score'] . '  班排: ' . $exam['classrank'] . '  年排: ' . $exam['graderank'];
+    echo NEWLINE . '单科成绩: ';
     foreach ($lists as $list) {
-        echo PHP_EOL . '科目: ' . $list['SubjectName'] . '  分数: ' . $list['Score'] . '  班排:  ' . $list['ClassRanking'] . '  年排:  ' . $list['GradeRanking'];
+        echo NEWLINE . '科目: ' . $list['SubjectName'] . '  分数: ' . $list['Score'] . '  班排:  ' . $list['ClassRanking'] . '  年排:  ' . $list['GradeRanking'];
     }
 }
 
@@ -131,43 +141,43 @@ function getTeacherFormat($stun)
     $info = '';
     foreach ($teachers as $teacher) {
         if ($teacher['TeacherName'] == '成外') { //没有该课老师
-            //$info = $info . PHP_EOL . '没有' . $teacher['SubjectName'];
+            //$info = $info . NEWLINE . '没有' . $teacher['SubjectName'];
         } else {
-            $info = $info . PHP_EOL . $teacher['SubjectName'] . ' : ' . $teacher['TeacherName'] . '(' . $teacher['MobilePhone'] . ')';
+            $info = $info . NEWLINE . $teacher['SubjectName'] . ' : ' . $teacher['TeacherName'] . '(' . $teacher['MobilePhone'] . ')';
         }
     }
     return $info;
 }
 
 
-if (isset($_GET['stun'])){
-    echo PHP_EOL . 'Github项目地址: https://github.com/kengwang/CFLSExamSeeker' . PHP_EOL;
+if (isset($_GET['stun'])) {
+    echo NEWLINE . 'Github项目地址: https://github.com/kengwang/CFLSExamSeeker' . NEWLINE;
     $stun = $_GET['stun'];
     $stuid = ID2StudentID($stun);
-    echo '转换学号为ID: ' . $stuid . PHP_EOL;    
+    echo '转换学号为ID: ' . $stuid . NEWLINE;
 }
 
-if (isset($_GET['getinfo'])){
+if (isset($_GET['getinfo'])) {
     echo getStuInfo($stun);
 }
 
-if (isset($_GET['getteacher'])){
+if (isset($_GET['getteacher'])) {
     echo getTeacherFormat($stun);
 }
 
-if (isset($_GET['test'])){
-    $time=$_GET['test'];
+if (isset($_GET['test'])) {
+    $time = $_GET['test'];
     if (date('Y-m-d', strtotime($time)) != $time) {
         echo '请输入合法的时间 xxxx-xx-xx';
         exit;
     }
-    getRecentScore($stuid, $argv[$n + 1]);
+    getRecentScore($stuid, $time);
 }
 
 for ($n = 0; $n < $argc; $n++) {
     switch ($argv[$n]) {
         case '--stun':
-            echo PHP_EOL . '您需要同意: ' . PHP_EOL . '* 不要在未经过他人允许的情况下查询' . PHP_EOL . '* 不要恶意爬虫他人信息' . PHP_EOL . '* 恶意使用造成的后果作者不负责' . PHP_EOL . '同意输入[1] 不同意按[Ctrl]+[c]退出';
+            echo NEWLINE . '您需要同意: ' . NEWLINE . '* 不要在未经过他人允许的情况下查询' . NEWLINE . '* 不要恶意爬虫他人信息' . NEWLINE . '* 恶意使用造成的后果作者不负责' . NEWLINE . '同意输入[1] 不同意按[Ctrl]+[c]退出';
             $handle = fopen("php://stdin", "r");
             $s = fgets($handle);
             if (intval($s) != 1) {
@@ -175,7 +185,7 @@ for ($n = 0; $n < $argc; $n++) {
             }
             $stun = $argv[$n + 1];
             $stuid = ID2StudentID($stun);
-            echo '转换学号为ID: ' . $stuid . PHP_EOL;
+            echo '转换学号为ID: ' . $stuid . NEWLINE;
             break;
         case '--getinfo':
             echo getStuInfo($stun);
@@ -193,13 +203,12 @@ for ($n = 0; $n < $argc; $n++) {
         case '-h':
         case '--help':
         case '?':
-            echo PHP_EOL . 'Github项目地址: https://github.com/kengwang/CFLSExamSeeker' . PHP_EOL;
+            echo NEWLINE . 'Github项目地址: https://github.com/kengwang/CFLSExamSeeker' . NEWLINE;
             echo '作者: Kengwang 请不要恶意查分&爬虫';
-            echo  '--stun 学号 [必须]' . PHP_EOL;
-            echo '--getinfo 获取学生信息' . PHP_EOL;
-            echo '--getteacher 获取老师信息' . PHP_EOL;
-            echo '--test <开始时间> 获取考试信息' . PHP_EOL;
+            echo  '--stun 学号 [必须]' . NEWLINE;
+            echo '--getinfo 获取学生信息' . NEWLINE;
+            echo '--getteacher 获取老师信息' . NEWLINE;
+            echo '--test <开始时间> 获取考试信息' . NEWLINE;
             break;
     }
 }
-?>
