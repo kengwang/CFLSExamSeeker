@@ -140,7 +140,29 @@ function getTeacherFormat($stun)
 }
 
 
+if (isset($_GET['stun'])){
+    echo PHP_EOL . 'Github项目地址: https://github.com/kengwang/CFLSExamSeeker' . PHP_EOL;
+    $stun = $_GET['stun'];
+    $stuid = ID2StudentID($stun);
+    echo '转换学号为ID: ' . $stuid . PHP_EOL;    
+}
 
+if (isset($_GET['getinfo'])){
+    echo getStuInfo($stun);
+}
+
+if (isset($_GET['getteacher'])){
+    echo getTeacherFormat($stun);
+}
+
+if (isset($_GET['test'])){
+    $time=$_GET['test'];
+    if (date('Y-m-d', strtotime($time)) != $time) {
+        echo '请输入合法的时间 xxxx-xx-xx';
+        exit;
+    }
+    getRecentScore($stuid, $argv[$n + 1]);
+}
 
 for ($n = 0; $n < $argc; $n++) {
     switch ($argv[$n]) {
@@ -180,3 +202,4 @@ for ($n = 0; $n < $argc; $n++) {
             break;
     }
 }
+?>
