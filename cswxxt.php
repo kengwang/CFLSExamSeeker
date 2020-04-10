@@ -14,7 +14,7 @@ if (isset($_GET['stun'])) {
  * @param $post array Post/Get的数据用Array
  * @return  array JSON
  */
-function cquery($url, $json, $ispost, $post, $getinurl = false)
+function cquery($url, $json, $ispost, $post = null, $getinurl = false)
 {
     $ch = curl_init();
     if ($ispost) {
@@ -26,8 +26,11 @@ function cquery($url, $json, $ispost, $post, $getinurl = false)
         curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
     } else {
         if (!$getinurl) {
-            $getdata = http_build_query($post);
-            $url = $url . "?" . $getdata;
+            if ($post !== null) {
+                $getdata = http_build_query($post);
+                $url = $url . "?" . $getdata;
+            }
+
         }
     }
     curl_setopt($ch, CURLOPT_URL, $url);
@@ -50,14 +53,16 @@ function ID2StudentID($id)
     );
     $bak = cquery('http://118.114.237.224:88/Partner/StudentfromID', true, true, $arr);
     if ($bak['Result'] != 1) {
-        echo '请求错误:';
+        echo '学号' . $id . '请求错误:';
         print_r($bak);
         exit;
+        return null;
+        //exit;
     }
     return $bak['StudentModel']['StudentID'];
 }
 
-function getStuInfo($stun)
+function getStuInfo($stun, $raw = false)
 {
     if (!is_numeric($stun)) {
         echo "--get-info 参数应为学号!";
@@ -70,7 +75,9 @@ function getStuInfo($stun)
     if ($bak['Result'] != 1) {
         echo '请求错误';
         print_r($bak);
-        exit;
+    }
+    if ($raw) {
+        return $bak;
     }
     $student = $bak['StudentModel'];
     $info = '学生姓名:' . $student['StudentName'] . NEWLINE . '家长手机:' . $student['GuardianPhone'] . NEWLINE . '班级:' . $student['ClassName'] . NEWLINE . '住址:' . $student['HomeAddress'] . NEWLINE . '班主任:' . $student['ClassHeaderName'] . '(' . $student['ClassHeaderPhone'] . ')' . NEWLINE . '年级主任: ' . $student['GradeHeaderName'] . '(' . $student['GradeHeaderPhone'] . ')';
@@ -121,6 +128,62 @@ function getRecentScore($stuid, $startdate)
     }
 }
 
+function GetExamCSVByClass($examid, $class,$grade,$maxclass=25)
+{
+    $first = true;
+    $csv = fopen("exam.csv", "w");
+    fwrite($csv, "\xEF\xBB\xBF"); //utf8支持
+    if ($class='for'){
+        for ($i = 1;$i<=$maxclass;$i++){
+            RealGetScores(($grade*10000)+($i*100));
+        }
+    }else{
+        RealGetScores(($grade*10000)+($class*100));
+    }
+
+    fclose($csv);
+    echo "输出完成了";
+}
+
+function RealGetScores($class){
+    for ($i = $class; $i <= $class + 60; $i++) {
+        $stuinfo = getStuInfo('0' . $i, true);
+        $stuid = $stuinfo['StudentModel']['StudentID'];
+        if ($stuid !== null) {
+            $url = 'http://118.114.237.224:88/_APP/Execute?id=Func=ExamResult@@@SchoolNO=cdwgy01@@@StudentNO=' . $stuid . '@@@ExamsID=' . $examid;
+            $bak = cquery($url, true, false, $examid, true);
+            if ($bak['result'] == 0) {
+                echo $examid . " - 0" . $i;
+                print_r($bak);
+                exit;
+            }
+            $lists = $bak['ListTable'];
+            $subject = array();
+            $subject[] = "学号";
+            $subject[]="班级";
+            $subject[] = "姓名";
+            $score = array(
+                0 => $stuinfo['StudentModel']['StudentNumber'],
+                1 => $class,
+                2 => $stuinfo['StudentModel']['StudentName']
+            );
+            foreach ($lists as $list) {
+                //echo NEWLINE . '科目: ' . $list['SubjectName'] . '  分数: ' . $list['Score'] . '  班排:  ' . $list['ClassRanking'] . '  年排:  ' . $list['GradeRanking'];
+                if ($first) {
+
+                    $subject[] = $list['SubjectName'];
+                }
+                $score[] = $list['Score'];
+            }
+            if ($first) {
+                fputcsv($csv, $subject);
+                $first = false;
+            }
+            fputcsv($csv, $score);
+        }
+    }
+}
+
 function getTeacherFormat($stun)
 {
     if (!is_numeric($stun)) {
@@ -149,6 +212,14 @@ function getTeacherFormat($stun)
     return $info;
 }
 
+if (isset($_GET['csv'])) {
+    if (isset($_GET['maxclass'])){
+        GetExamCSVByClass($_GET['examid'], 'for',$_GET['grade'],$_GET['maxclass']);
+    }else{
+        GetExamCSVByClass($_GET['examid'],$_GET['class'],$_GET['grade']);
+    }
+    exit;
+}
 
 if (isset($_GET['stun'])) {
     echo NEWLINE . 'Github项目地址: https://github.com/kengwang/CFLSExamSeeker' . NEWLINE;
@@ -205,7 +276,7 @@ for ($n = 0; $n < $argc; $n++) {
         case '?':
             echo NEWLINE . 'Github项目地址: https://github.com/kengwang/CFLSExamSeeker' . NEWLINE;
             echo '作者: Kengwang 请不要恶意查分&爬虫';
-            echo  '--stun 学号 [必须]' . NEWLINE;
+            echo '--stun 学号 [必须]' . NEWLINE;
             echo '--getinfo 获取学生信息' . NEWLINE;
             echo '--getteacher 获取老师信息' . NEWLINE;
             echo '--test <开始时间> 获取考试信息' . NEWLINE;
