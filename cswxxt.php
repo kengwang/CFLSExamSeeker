@@ -14,7 +14,7 @@ if (isset($_GET['stun'])) {
  * @param $post array Post/Get的数据用Array
  * @return  array JSON
  */
-function cquery($url, $json, $ispost, $post = null, $getinurl = false)
+function cquery($url, $json, $ispost, $post = null, $getinurl = false, $debug = false)
 {
     $ch = curl_init();
     if ($ispost) {
@@ -30,14 +30,20 @@ function cquery($url, $json, $ispost, $post = null, $getinurl = false)
                 $getdata = http_build_query($post);
                 $url = $url . "?" . $getdata;
             }
-
         }
     }
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_HEADER, false);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); //如果把这行注释掉的话，就会直接输出
+    if (!$debug) curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); //如果把这行注释掉的话，就会直接输出
 
     $result = curl_exec($ch);
+    if ($debug) {
+        echo 'cUrl is Debugging' . NEWLINE;
+        if ($result == false) {
+            echo 'The URL is : "' . $url . '"' . NEWLINE;
+            echo 'Curl error: ' . curl_errno($ch) . NEWLINE;
+        }
+    }
     curl_close($ch);
     if ($json) {
         $result = json_decode($result, true);
@@ -128,49 +134,50 @@ function getRecentScore($stuid, $startdate)
     }
 }
 
-function GetExamCSVByClass($examid, $class,$grade,$maxclass=25)
+function GetExamCSVByClass($examid, $class, $grade = 2019, $maxclass = 25, $minclass = 1)
 {
-    $first = true;
-    $csv = fopen("exam.csv", "w");
-    fwrite($csv, "\xEF\xBB\xBF"); //utf8支持
-    if ($class='for'){
-        for ($i = 1;$i<=$maxclass;$i++){
-            RealGetScores(($grade*10000)+($i*100));
+    if ($class == 'for') {
+        for ($i = $minclass; $i <= $maxclass; $i++) {
+            RealGetScores(($grade * 10000) + ($i * 100), $examid);
         }
-    }else{
-        RealGetScores(($grade*10000)+($class*100));
+    } else {
+        RealGetScores($class * 100, $examid);
     }
 
-    fclose($csv);
     echo "输出完成了";
 }
 
-function RealGetScores($class){
-    for ($i = $class; $i <= $class + 60; $i++) {
+function RealGetScores($class, $examid)
+{
+    $realclass = intval($class / 100) % 100;
+    echo 'Getting class ' . $realclass . NEWLINE;
+    $first = true;
+    $csv = fopen("exam.csv", "a");
+    fwrite($csv, "\xEF\xBB\xBF"); //utf8支持
+    for ($i = $class + 1; $i <= $class + 60; $i++) {
+        echo '学号: 0' . $i . NEWLINE;
         $stuinfo = getStuInfo('0' . $i, true);
         $stuid = $stuinfo['StudentModel']['StudentID'];
         if ($stuid !== null) {
             $url = 'http://118.114.237.224:88/_APP/Execute?id=Func=ExamResult@@@SchoolNO=cdwgy01@@@StudentNO=' . $stuid . '@@@ExamsID=' . $examid;
-            $bak = cquery($url, true, false, $examid, true);
-            if ($bak['result'] == 0) {
-                echo $examid . " - 0" . $i;
-                print_r($bak);
-                exit;
+            $bak = cquery($url, true, false, $url, true, false);
+            if ($bak['result'] == false) {
+                var_dump($bak);
+                continue;
             }
             $lists = $bak['ListTable'];
             $subject = array();
             $subject[] = "学号";
-            $subject[]="班级";
+            $subject[] = "班级";
             $subject[] = "姓名";
             $score = array(
                 0 => $stuinfo['StudentModel']['StudentNumber'],
-                1 => $class,
+                1 => $realclass,
                 2 => $stuinfo['StudentModel']['StudentName']
             );
             foreach ($lists as $list) {
                 //echo NEWLINE . '科目: ' . $list['SubjectName'] . '  分数: ' . $list['Score'] . '  班排:  ' . $list['ClassRanking'] . '  年排:  ' . $list['GradeRanking'];
                 if ($first) {
-
                     $subject[] = $list['SubjectName'];
                 }
                 $score[] = $list['Score'];
@@ -179,9 +186,11 @@ function RealGetScores($class){
                 fputcsv($csv, $subject);
                 $first = false;
             }
+
             fputcsv($csv, $score);
         }
     }
+    fclose($csv);
 }
 
 function getTeacherFormat($stun)
@@ -203,9 +212,7 @@ function getTeacherFormat($stun)
     $teachers = $bak['StudentModel']['ListSubject'];
     $info = '';
     foreach ($teachers as $teacher) {
-        if ($teacher['TeacherName'] == '成外') { //没有该课老师
-            //$info = $info . NEWLINE . '没有' . $teacher['SubjectName'];
-        } else {
+        if (!$teacher['TeacherName'] == '成外') { //没有该课老师
             $info = $info . NEWLINE . $teacher['SubjectName'] . ' : ' . $teacher['TeacherName'] . '(' . $teacher['MobilePhone'] . ')';
         }
     }
@@ -213,10 +220,10 @@ function getTeacherFormat($stun)
 }
 
 if (isset($_GET['csv'])) {
-    if (isset($_GET['maxclass'])){
-        GetExamCSVByClass($_GET['examid'], 'for',$_GET['grade'],$_GET['maxclass']);
-    }else{
-        GetExamCSVByClass($_GET['examid'],$_GET['class'],$_GET['grade']);
+    if (isset($_GET['maxclass'])) {
+        GetExamCSVByClass($_GET['examid'], 'for', $_GET['grade'], $_GET['maxclass'], $_GET['minclass']);
+    } else {
+        GetExamCSVByClass($_GET['examid'], $_GET['class'], $_GET['grade']);
     }
     exit;
 }
@@ -250,7 +257,7 @@ for ($n = 0; $n < $argc; $n++) {
         case '--stun':
             echo NEWLINE . '您需要同意: ' . NEWLINE . '* 不要在未经过他人允许的情况下查询' . NEWLINE . '* 不要恶意爬虫他人信息' . NEWLINE . '* 恶意使用造成的后果作者不负责' . NEWLINE . '同意输入[1] 不同意按[Ctrl]+[c]退出';
             $handle = fopen("php://stdin", "r");
-            $s = fgets($handle);
+            $s = trim(fgets($handle));
             if (intval($s) != 1) {
                 exit;
             }
@@ -271,11 +278,35 @@ for ($n = 0; $n < $argc; $n++) {
             }
             getRecentScore($stuid, $argv[$n + 1]);
             break;
+        case '--gradeexam':
+            echo '请输入年级: ';
+            $handle = fopen("php://stdin", "r");
+            $grade = trim(fgets($handle));
+            echo '请输入考试号: ';
+            $handle = fopen("php://stdin", "r");
+            $examid = trim(fgets($handle));
+            echo '请输入最大班级数: ';
+            $handle = fopen("php://stdin", "r");
+            $maxclass = trim(fgets($handle));
+            echo '请输入最小班级数: ';
+            $handle = fopen("php://stdin", "r");
+            $minclass = trim(fgets($handle));
+            GetExamCSVByClass($examid, 'for', $grade, $maxclass, $minclass);
+            break;
+        case '--classexam':
+            echo '请输入班级: ';
+            $handle = fopen("php://stdin", "r");
+            $class = trim(fgets($handle));
+            echo '请输入考试号: ';
+            $handle = fopen("php://stdin", "r");
+            $examid = trim(fgets($handle));
+            GetExamCSVByClass($examid, $class);
+            break;
         case '-h':
         case '--help':
         case '?':
             echo NEWLINE . 'Github项目地址: https://github.com/kengwang/CFLSExamSeeker' . NEWLINE;
-            echo '作者: Kengwang 请不要恶意查分&爬虫';
+            echo '作者: Kengwang 请不要恶意查分&爬虫' . NEWLINE;
             echo '--stun 学号 [必须]' . NEWLINE;
             echo '--getinfo 获取学生信息' . NEWLINE;
             echo '--getteacher 获取老师信息' . NEWLINE;
