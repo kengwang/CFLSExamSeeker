@@ -134,29 +134,30 @@ function getRecentScore($stuid, $startdate)
     }
 }
 
-function GetExamCSVByClass($examid, $class, $grade = 2019, $maxclass = 25, $minclass = 1)
+function GetExamCSVByClass($examid, $class = '02019', $grade = '020', $maxclass = 25, $minclass = 1)
 {
     if ($class == 'for') {
         for ($i = $minclass; $i <= $maxclass; $i++) {
-            RealGetScores(($grade * 10000) + ($i * 100), $examid);
+            $i = sprintf("%02d", $i);
+            RealGetScores($grade . $i, $examid);
         }
     } else {
-        RealGetScores($class * 100, $examid);
+        RealGetScores($class, $examid);
     }
 
     echo "输出完成了";
 }
 
-function RealGetScores($class, $examid)
+function RealGetScores($class = '02019', $examid)
 {
-    $realclass = intval($class / 100) % 100;
-    echo 'Getting class ' . $realclass . NEWLINE;
+    echo 'Getting class ' . $class . NEWLINE;
     $first = true;
     $csv = fopen("exam.csv", "a");
     fwrite($csv, "\xEF\xBB\xBF"); //utf8支持
-    for ($i = $class + 1; $i <= $class + 60; $i++) {
-        echo '学号: 0' . $i . NEWLINE;
-        $stuinfo = getStuInfo('0' . $i, true);
+    for ($i = 1; $i <= 65; $i++) {
+        $i = sprintf("%02d", $i);
+        echo '学号: ' . $class . $i . NEWLINE;
+        $stuinfo = getStuInfo($class . $i, true);
         $stuid = $stuinfo['StudentModel']['StudentID'];
         if ($stuid !== null) {
             $url = 'http://118.114.237.224:88/_APP/Execute?id=Func=ExamResult@@@SchoolNO=cdwgy01@@@StudentNO=' . $stuid . '@@@ExamsID=' . $examid;
@@ -172,7 +173,7 @@ function RealGetScores($class, $examid)
             $subject[] = "姓名";
             $score = array(
                 0 => $stuinfo['StudentModel']['StudentNumber'],
-                1 => $realclass,
+                1 => $class,
                 2 => $stuinfo['StudentModel']['StudentName']
             );
             foreach ($lists as $list) {
@@ -182,12 +183,16 @@ function RealGetScores($class, $examid)
                 }
                 $score[] = $list['Score'];
             }
+            $score[] = $bak['score'];
             if ($first) {
+                $subject[] = '总分';
                 fputcsv($csv, $subject);
                 $first = false;
             }
 
             fputcsv($csv, $score);
+        }else{
+            echo '获取失败';
         }
     }
     fclose($csv);
@@ -203,6 +208,7 @@ function getTeacherFormat($stun)
         'SchoolCode' => 'cdwgy01',
         'StudentNumber' => $stun
     );
+
     $bak = cquery('http://118.114.237.224:88/Partner/StudentfromID', true, true, $arr);
     if ($bak['Result'] != 1) {
         echo '请求错误';
@@ -212,7 +218,7 @@ function getTeacherFormat($stun)
     $teachers = $bak['StudentModel']['ListSubject'];
     $info = '';
     foreach ($teachers as $teacher) {
-        if (!$teacher['TeacherName'] == '成外') { //没有该课老师
+        if ($teacher['TeacherName'] != '成外') { //没有该课老师
             $info = $info . NEWLINE . $teacher['SubjectName'] . ' : ' . $teacher['TeacherName'] . '(' . $teacher['MobilePhone'] . ')';
         }
     }
@@ -279,25 +285,25 @@ for ($n = 0; $n < $argc; $n++) {
             getRecentScore($stuid, $argv[$n + 1]);
             break;
         case '--gradeexam':
-            echo '请输入年级: ';
+            echo '请输入年级: (02000) [高中 1 开头, 初中 0 开头, 为学号前 5 位]';
             $handle = fopen("php://stdin", "r");
             $grade = trim(fgets($handle));
-            echo '请输入考试号: ';
+            echo '请输入考试号: (Ex0000000000)';
             $handle = fopen("php://stdin", "r");
             $examid = trim(fgets($handle));
-            echo '请输入最大班级数: ';
+            echo '请输入最大班级数: (25)';
             $handle = fopen("php://stdin", "r");
             $maxclass = trim(fgets($handle));
-            echo '请输入最小班级数: ';
+            echo '请输入最小班级数: (1)';
             $handle = fopen("php://stdin", "r");
             $minclass = trim(fgets($handle));
-            GetExamCSVByClass($examid, 'for', $grade, $maxclass, $minclass);
+            GetExamCSVByClass($examid, 'for', $eduform . $grade, $maxclass, $minclass);
             break;
         case '--classexam':
-            echo '请输入班级: ';
+            echo '请输入班级: (0201001) [高中 1 开头, 初中 0 开头, 为学号前 5 位]';
             $handle = fopen("php://stdin", "r");
             $class = trim(fgets($handle));
-            echo '请输入考试号: ';
+            echo '请输入考试号: (Ex0000000000)';
             $handle = fopen("php://stdin", "r");
             $examid = trim(fgets($handle));
             GetExamCSVByClass($examid, $class);
