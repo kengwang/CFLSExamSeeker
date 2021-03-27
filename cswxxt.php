@@ -176,16 +176,27 @@ function RealGetScores($class = '02019', $examid)
                 1 => $class,
                 2 => $stuinfo['StudentModel']['StudentName']
             );
+			$ttscore=0.0;
             foreach ($lists as $list) {
                 //echo NEWLINE . '科目: ' . $list['SubjectName'] . '  分数: ' . $list['Score'] . '  班排:  ' . $list['ClassRanking'] . '  年排:  ' . $list['GradeRanking'];
                 if ($first) {
                     $subject[] = $list['SubjectName'];
+                    $subject[] = $list['SubjectName'].'班排';
+                    $subject[] = $list['SubjectName'].'年排';
                 }
+				$ttscore+=$list['Score'];
                 $score[] = $list['Score'];
+                $score[] = $list['ClassRanking'];
+                $score[] = $list['GradeRanking'];
             }
-            $score[] = $bak['score'];
+            $score[] = $ttscore;
+            $score[] = $bak['ClassRanking'];
+            $score[] = $bak['GradeRanking'];
+			
             if ($first) {
                 $subject[] = '总分';
+				$subject[] = '班排';
+				$subject[] = '年排';
                 fputcsv($csv, $subject);
                 $first = false;
             }
